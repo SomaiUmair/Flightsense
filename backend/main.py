@@ -18,6 +18,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
 
 from pipeline.queries import get_cheapest, get_price_history
+from ml.models.predict import recommend
 
 # The application object. FastAPI/uvicorn look for this `app` variable.
 # title/description show up in the auto-generated docs at /docs.
@@ -75,3 +76,16 @@ def cheapest(origin: str, destination: str, departure_date: date):
     if result is None:
         raise HTTPException(status_code=404, detail="No prices recorded for that flight.")
     return result
+
+
+@app.get("/predict/{origin}/{destination}")
+def predict(origin: str, destination: str, departure_date: date):
+    """Recommend BOOK NOW or WAIT for a flight, using the trained ML model."""
+    try:
+        # recommend() loads the model, predicts prices across the remaining
+        # days, and returns a dict -> FastAPI serializes it straight to JSON.
+        return recommend(origin.upper(), destination.upper(), departure_date)
+    except RuntimeError as error:
+        # The model file doesn't exist yet (train.py hasn't been run).
+        # 503 = "service not ready" is the honest status here.
+        raise HTTPException(status_code=503, detail=str(error))
