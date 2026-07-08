@@ -1,15 +1,7 @@
 """FastAPI application for FlightSense.
 
-This is the web layer. It turns the read functions in pipeline/queries.py into
-HTTP endpoints you can hit from a browser or another app. The API is thin on
-purpose: it does NOT talk to the database directly -- it calls the query
-functions and returns their results as JSON. All the data logic stays in one
-place (pipeline/), the API just exposes it.
-
-Run it with:
-    uvicorn backend.main:app --reload
-
-Then open http://127.0.0.1:8000/docs for interactive, auto-generated docs.
+Thin HTTP layer over the pipeline query and ML functions; returns JSON. Run with
+`uvicorn backend.main:app --reload` (interactive docs at /docs).
 """
 
 from datetime import date, datetime
@@ -20,8 +12,6 @@ from pydantic import BaseModel, ConfigDict
 from pipeline.queries import get_cheapest, get_price_history
 from ml.models.predict import recommend
 
-# The application object. FastAPI/uvicorn look for this `app` variable.
-# title/description show up in the auto-generated docs at /docs.
 app = FastAPI(
     title="FlightSense",
     description="Flight price tracker and best-time-to-book predictor.",
@@ -29,12 +19,9 @@ app = FastAPI(
 
 
 class PriceQuoteOut(BaseModel):
-    """The shape of a price returned to API clients.
+    """JSON shape for a price returned to clients.
 
-    A PriceQuote is a SQLAlchemy object; the web can't send that directly. This
-    Pydantic model defines exactly which fields we expose and their types, then
-    serializes them to JSON. from_attributes=True lets it read straight from a
-    PriceQuote object's attributes.
+    from_attributes=True lets FastAPI read fields straight off the SQLAlchemy row.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -50,19 +37,14 @@ class PriceQuoteOut(BaseModel):
 
 @app.get("/")
 def root() -> dict:
-    """Health check — confirms the API is up."""
+    """Health check."""
     return {"status": "ok", "service": "FlightSense"}
 
 
 @app.get("/prices/{origin}/{destination}", response_model=list[PriceQuoteOut])
 def price_history(origin: str, destination: str, departure_date: date):
-    """Full price history for one flight, oldest observation first.
-
-    `departure_date` comes from the query string, e.g.
-        /prices/YYC/LHR?departure_date=2026-09-01
-    FastAPI parses it into a real date and rejects bad formats automatically.
-    """
-    # Uppercase the codes so /prices/yyc/lhr works the same as /prices/YYC/LHR.
+    """Full price history for one flight, oldest first."""
+    # Uppercase so /prices/yyc/lhr matches the stored codes.
     return get_price_history(origin.upper(), destination.upper(), departure_date)
 
 
@@ -70,9 +52,8 @@ def price_history(origin: str, destination: str, departure_date: date):
     "/prices/{origin}/{destination}/cheapest", response_model=PriceQuoteOut
 )
 def cheapest(origin: str, destination: str, departure_date: date):
-    """The single lowest fare ever recorded for one flight."""
+    """Lowest fare ever recorded for one flight."""
     result = get_cheapest(origin.upper(), destination.upper(), departure_date)
-    # No rows for this flight -> return a proper 404 instead of null.
     if result is None:
         raise HTTPException(status_code=404, detail="No prices recorded for that flight.")
     return result
@@ -80,12 +61,12 @@ def cheapest(origin: str, destination: str, departure_date: date):
 
 @app.get("/predict/{origin}/{destination}")
 def predict(origin: str, destination: str, departure_date: date):
-    """Recommend BOOK NOW or WAIT for a flight, using the trained ML model."""
+    """Recommend BOOK NOW or WAIT using the trained model."""
     try:
-        # recommend() loads the model, predicts prices across the remaining
-        # days, and returns a dict -> FastAPI serializes it straight to JSON.
         return recommend(origin.upper(), destination.upper(), departure_date)
+    except ValueError as error:
+        # e.g. departure_date in the past.
+        raise HTTPException(status_code=400, detail=str(error))
     except RuntimeError as error:
-        # The model file doesn't exist yet (train.py hasn't been run).
-        # 503 = "service not ready" is the honest status here.
+        # Model file doesn't exist yet — surface as "service not ready".
         raise HTTPException(status_code=503, detail=str(error))

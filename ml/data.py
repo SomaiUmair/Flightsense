@@ -1,61 +1,56 @@
-# ml/data.py
-# Data loader: read flight price history out of PostgreSQL into a pandas
-# DataFrame. This is the only ML file that talks to the database.
-#
-# Planned functions:
-#   load_all_quotes()            -> DataFrame   (all history, for training)
-#   load_quotes_for_flight(...)  -> DataFrame   (one flight, for inference)
+"""Load flight price history from PostgreSQL into pandas DataFrames.
 
-#Import libraries
-import pandas as pd                                  # the DataFrame library; `pd` is the standard nickname
-from pipeline.models.database import engine          # reuse the ONE database connection we already built
-from sqlalchemy import text                          # wraps SQL strings so we can pass safe, named parameters
+The only ML module that talks to the database; downstream steps work on the
+returned DataFrames.
+"""
 
+from datetime import date
 
-def load_all_quotes():                               # define the function; no arguments -> it loads everything
-    """Load the entire price_quotes table as a DataFrame (oldest first)."""  # what the function does (shows on hover)
+import pandas as pd
+from sqlalchemy import text
 
-    query = "SELECT * FROM price_quotes ORDER BY observed_at ASC"  # SQL: every column, sorted oldest -> newest
-
-    df = pd.read_sql(query, engine)                  # run the query over our engine; pandas returns a DataFrame
-
-    # --- type cleanup: make DB types friendly for machine learning ---
-    df["price"] = df["price"].astype(float)          # Numeric comes out as Decimal/object -> force real float
-    df["observed_at"] = pd.to_datetime(df["observed_at"])       # ensure this column is a real datetime
-    df["departure_date"] = pd.to_datetime(df["departure_date"]) # ensure this is a real datetime too (for date math)
-
-    return df                                        # hand the cleaned DataFrame back to the caller
+from pipeline.models.database import engine
 
 
-def load_quotes_for_flight(origin, destination, departure_date):  # one specific flight: route + date come in as args
-    """Load the price history for ONE specific flight (oldest first)."""  # docstring
+def load_all_quotes() -> pd.DataFrame:
+    """Load the entire price_quotes table as a DataFrame (oldest first)."""
+    query = "SELECT * FROM price_quotes ORDER BY observed_at ASC"
+    df = pd.read_sql(query, engine)
 
-    query = text(                                    # text() lets us use safe :named placeholders instead of gluing values in
-        "SELECT * FROM price_quotes "                # every column...
-        "WHERE origin = :origin "                    # ...only this origin...
-        "AND destination = :destination "            # ...this destination...
-        "AND departure_date = :departure_date "      # ...this departure date...
-        "ORDER BY observed_at ASC"                   # ...sorted oldest -> newest
+    # Coerce DB types to ML-friendly ones (Numeric -> float, dates -> datetime).
+    df["price"] = df["price"].astype(float)
+    df["observed_at"] = pd.to_datetime(df["observed_at"])
+    df["departure_date"] = pd.to_datetime(df["departure_date"])
+    return df
+
+
+def load_quotes_for_flight(
+    origin: str, destination: str, departure_date: date
+) -> pd.DataFrame:
+    """Load the price history for one specific flight (oldest first)."""
+    # Parameterized query (named placeholders) rather than string formatting.
+    query = text(
+        "SELECT * FROM price_quotes "
+        "WHERE origin = :origin "
+        "AND destination = :destination "
+        "AND departure_date = :departure_date "
+        "ORDER BY observed_at ASC"
     )
-
-    params = {                                       # the actual values that fill the :placeholders above
-        "origin": origin,                            # :origin        <- origin argument
-        "destination": destination,                  # :destination   <- destination argument
-        "departure_date": departure_date,            # :departure_date <- departure_date argument
+    params = {
+        "origin": origin,
+        "destination": destination,
+        "departure_date": departure_date,
     }
+    df = pd.read_sql(query, engine, params=params)
 
-    df = pd.read_sql(query, engine, params=params)   # run the parameterized query; pandas returns a DataFrame
-
-    # --- same type cleanup as above ---
-    df["price"] = df["price"].astype(float)          # Decimal/object -> float
-    df["observed_at"] = pd.to_datetime(df["observed_at"])       # -> datetime
-    df["departure_date"] = pd.to_datetime(df["departure_date"]) # -> datetime
-
-    return df                                        # hand the cleaned DataFrame back
+    df["price"] = df["price"].astype(float)
+    df["observed_at"] = pd.to_datetime(df["observed_at"])
+    df["departure_date"] = pd.to_datetime(df["departure_date"])
+    return df
 
 
-if __name__ == "__main__":                           # only runs when you execute this file directly
-    df = load_all_quotes()                           # load everything...
-    print(df.shape)                                  # (number of rows, number of columns)
-    print(df.dtypes)                                 # the type of each column  <- check `price` is float64
-    print(df.head())                                 # the first 5 rows, to eyeball the data
+if __name__ == "__main__":
+    df = load_all_quotes()
+    print(df.shape)
+    print(df.dtypes)
+    print(df.head())
