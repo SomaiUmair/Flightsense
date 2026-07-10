@@ -10,7 +10,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
 
 from pipeline.queries import get_cheapest, get_price_history
-from ml.models.predict import recommend
 
 app = FastAPI(
     title="FlightSense",
@@ -62,6 +61,12 @@ def cheapest(origin: str, destination: str, departure_date: date):
 @app.get("/predict/{origin}/{destination}")
 def predict(origin: str, destination: str, departure_date: date):
     """Recommend BOOK NOW or WAIT using the trained model."""
+    # Imported here, not at module top: this pulls in the whole ML stack
+    # (xgboost/sklearn/pandas), which takes far too long at startup on
+    # AV-scanned machines. Lazy-loading keeps API startup fast; the first
+    # /predict call pays the import cost instead.
+    from ml.models.predict import recommend
+
     try:
         return recommend(origin.upper(), destination.upper(), departure_date)
     except ValueError as error:
