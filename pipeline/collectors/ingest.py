@@ -4,22 +4,24 @@ Split into fetch_prices() (the source) and ingest() (the save loop) so the data
 source can change without touching the pipeline.
 """
 
-from datetime import date
-
 from pipeline.collectors.collector import record_quote
 from pipeline.collectors.flight_api import get_live_prices
 
-# Routes and dates we track — the searches sent to the API each run.
-TRACKED_FLIGHTS = [
-    {"origin": "YYC", "destination": "LHR", "departure_date": date(2026, 9, 1)},
-    {"origin": "YVR", "destination": "NRT", "departure_date": date(2026, 10, 15)},
-    {"origin": "YYZ", "destination": "CDG", "departure_date": date(2026, 8, 20)},
+# Routes we track. Travelpayouts keys prices by CITY code (YTO = all Toronto
+# airports, LON = all London airports), so routes use city codes; each run
+# returns fares for many departure dates per route.
+TRACKED_ROUTES = [
+    {"origin": "YYC", "destination": "LON"},  # Calgary -> London
+    {"origin": "YVR", "destination": "TYO"},  # Vancouver -> Tokyo
+    {"origin": "YTO", "destination": "PAR"},  # Toronto -> Paris
 ]
 
 
 def fetch_prices() -> list[dict]:
-    """Return the current cheapest price for each tracked flight."""
-    return get_live_prices(TRACKED_FLIGHTS, currency="CAD")
+    """Return recently-found fares for each tracked route."""
+    # usd, not cad: Travelpayouts documents rub/usd/eur; the saver stores
+    # whatever currency each quote reports.
+    return get_live_prices(TRACKED_ROUTES, currency="usd")
 
 
 def ingest() -> None:

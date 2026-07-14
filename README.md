@@ -1,7 +1,7 @@
 # FlightSense
 
 FlightSense is a flight price tracker and best-time-to-book predictor. It
-collects fares from the Amadeus API on a schedule, stores their history in
+collects fares from the Travelpayouts API on a schedule, stores their history in
 PostgreSQL, and serves price history plus a book-now-or-wait recommendation
 through a FastAPI backend. This repository is the backend; the frontend is a
 separate project.
@@ -11,7 +11,7 @@ separate project.
 - **Python 3** · **FastAPI** — web API
 - **PostgreSQL** · **SQLAlchemy 2.0** — storage
 - **APScheduler** — scheduled ingestion
-- **Amadeus Self-Service API** — live fare data
+- **Travelpayouts Data API** — fare data
 - **scikit-learn** · **XGBoost** — price model
 
 ## Architecture
@@ -20,7 +20,7 @@ separate project.
               ┌──────────── scheduler (APScheduler) ────────────┐
               │                                                  │
               ▼                                                  │
- Amadeus API ──► ingest ──► PostgreSQL ──► queries ──► FastAPI ──► client
+Travelpayouts ──► ingest ──► PostgreSQL ──► queries ──► FastAPI ──► client
                                 │
                                 └──► ml: data → features → train → predict
 ```
@@ -48,8 +48,8 @@ python -m pipeline.collectors.ingest
 uvicorn backend.main:app --reload
 ```
 
-Requires a running PostgreSQL instance and free Amadeus API credentials
-(https://developers.amadeus.com), both set in `.env`.
+Requires a PostgreSQL instance (a free cloud one such as Neon works) and a free
+Travelpayouts API token (https://www.travelpayouts.com), both set in `.env`.
 
 ## API
 
@@ -60,9 +60,9 @@ Interactive docs at `/docs`. Three endpoints:
 ```json
 [
   {
-    "id": 12, "origin": "YYC", "destination": "LHR",
+    "id": 12, "origin": "YYC", "destination": "LON",
     "departure_date": "2026-09-01", "price": 899.99,
-    "currency": "CAD", "observed_at": "2026-07-08T14:30:00Z"
+    "currency": "USD", "observed_at": "2026-07-08T14:30:00Z"
   }
 ]
 ```
@@ -71,9 +71,9 @@ Interactive docs at `/docs`. Three endpoints:
 
 ```json
 {
-  "id": 8, "origin": "YYC", "destination": "LHR",
+  "id": 8, "origin": "YYC", "destination": "LON",
   "departure_date": "2026-09-01", "price": 812.50,
-  "currency": "CAD", "observed_at": "2026-07-05T09:00:00Z"
+  "currency": "USD", "observed_at": "2026-07-05T09:00:00Z"
 }
 ```
 
@@ -81,7 +81,7 @@ Interactive docs at `/docs`. Three endpoints:
 
 ```json
 {
-  "route": "YYC-LHR", "departure_date": "2026-09-01",
+  "route": "YYC-LON", "departure_date": "2026-09-01",
   "predicted_price_today": 899.0, "cheapest_predicted_price": 812.34,
   "best_day_to_book": "2026-08-10", "recommendation": "WAIT"
 }

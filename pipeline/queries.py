@@ -48,7 +48,7 @@ def get_cheapest(
 
 
 if __name__ == "__main__":
-    origin, destination, dep = "YYC", "LHR", date(2026, 9, 1)
+    origin, destination, dep = "YTO", "PAR", date(2026, 9, 20)
 
     history = get_price_history(origin, destination, dep)
     print(f"Price history for {origin}->{destination} on {dep}:")

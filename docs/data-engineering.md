@@ -15,10 +15,10 @@ repeatedly, so its price history is simply all its rows ordered by time.
 ## Architecture at a glance
 
 ```
- Amadeus API            pipeline (data engineering)              PostgreSQL
+ Travelpayouts          pipeline (data engineering)              PostgreSQL
 ┌────────────┐   fetch  ┌───────────┐   record   ┌────────────┐  store  ┌──────────────┐
-│ flight     │────────► │ flight_api│──────────► │ ingest /   │───────► │ price_quotes │
-│ offers     │          │  .py      │            │ collector  │         │   table      │
+│ cached     │────────► │ flight_api│──────────► │ ingest /   │───────► │ price_quotes │
+│ fares      │          │  .py      │            │ collector  │         │   table      │
 └────────────┘          └───────────┘            └────────────┘         └──────┬───────┘
                              ▲                                                  │ read
                         ┌────┴─────┐  every 30 min                       ┌──────▼───────┐
@@ -28,7 +28,7 @@ repeatedly, so its price history is simply all its rows ordered by time.
 ```
 
 **Data flow:** the scheduler triggers ingestion on an interval → ingestion asks
-the Amadeus source for current prices → each price is saved to `price_quotes` →
+the Travelpayouts source for current prices → each price is saved to `price_quotes` →
 the query layer reads that history back out (and the FastAPI app serves it).
 
 ## Components
@@ -38,7 +38,7 @@ the query layer reads that history back out (and the FastAPI app serves it).
 | `pipeline/models/database.py` | Connection layer. Loads `DATABASE_URL` from `.env`; creates the SQLAlchemy `engine` (pooled connection to PostgreSQL), `SessionLocal` (session factory), and `Base` (parent class for all tables). Includes `test_connection()`. |
 | `pipeline/models/flight.py` | The schema. Defines the `price_quotes` table via the `PriceQuote` model. |
 | `pipeline/models/init_db.py` | Creates the tables in PostgreSQL (`Base.metadata.create_all`). Run once. |
-| `pipeline/collectors/flight_api.py` | Live price **source**. Authenticates to Amadeus and returns the cheapest current fare per tracked flight. |
+| `pipeline/collectors/flight_api.py` | Live price **source**. Queries Travelpayouts and returns recently-found one-way fares for each tracked route — cheapest per departure date. |
 | `pipeline/collectors/collector.py` | The **saver**. `record_quote(...)` writes one price to the database. |
 | `pipeline/collectors/ingest.py` | The **ingestion** step. `fetch_prices()` gets prices from the source; `ingest()` saves each via `record_quote()`. |
 | `pipeline/scheduler.py` | Runs `ingest()` automatically on an interval (APScheduler), so history builds unattended. |
@@ -53,7 +53,7 @@ the query layer reads that history back out (and the FastAPI app serves it).
 | `destination` | varchar(3) | IATA airport code, indexed. |
 | `departure_date` | date | The flight's date, indexed. |
 | `price` | numeric(10,2) | Exact decimal (not float) — money must not round. |
-| `currency` | varchar(3) | ISO code, e.g. CAD. |
+| `currency` | varchar(3) | ISO code, e.g. USD. |
 | `observed_at` | timestamptz | When we recorded the price; DB-stamped default, indexed. |
 
 A composite index on `(origin, destination, departure_date)` supports the most
@@ -64,8 +64,9 @@ common query: the price history for one specific flight over time.
 1. **Trigger** — `scheduler.py` fires `ingest()` immediately on startup, then
    every 30 minutes (configurable; production would use hours).
 2. **Fetch** — `ingest.fetch_prices()` delegates to `flight_api.get_live_prices()`,
-   which authenticates to Amadeus (OAuth2), searches each tracked flight, and
-   returns the cheapest fare per flight as plain dicts.
+   which queries Travelpayouts (token auth) for each tracked route and returns
+   the cheapest recently-found fare per departure date as plain dicts. Routes
+   use city codes (YTO, LON, PAR) because that is how the API keys its data.
 3. **Save** — `ingest()` loops the fetched prices and calls
    `collector.record_quote()` for each, which opens a session, inserts a
    `PriceQuote`, commits, and returns the saved row.
@@ -77,17 +78,19 @@ common query: the price history for one specific flight over time.
 ## Key design decisions
 
 - **Source separated from saver.** `flight_api.py` (where data comes from) is
-  isolated from `collector.py` (how it's stored). Swapping the mock for the live
-  Amadeus API changed only `fetch_prices()`; nothing downstream moved. The same
-  seam lets us swap Amadeus for another provider later.
+  isolated from `collector.py` (how it's stored). This seam has paid off twice:
+  swapping the mock for the live Amadeus API touched only `fetch_prices()`, and
+  when Amadeus decommissioned its self-service portal (July 2026), swapping in
+  Travelpayouts touched only this one module. Nothing downstream moved either
+  time.
 - **One connection, many sessions.** The `engine` is created once and shared;
   each unit of work gets a short-lived session. Standard SQLAlchemy practice.
 - **`Numeric`, never `Float`, for money.** Floats introduce rounding errors;
   prices must be exact.
 - **Timestamp every observation.** Storing `observed_at` on every row is what
   makes this a price *tracker* (history) rather than a static price list.
-- **Fail fast on config.** Missing `DATABASE_URL` or Amadeus credentials raise
-  clear errors at startup rather than failing obscurely later.
+- **Fail fast on config.** Missing `DATABASE_URL` or the Travelpayouts token
+  raises a clear error at startup rather than failing obscurely later.
 
 ## Configuration
 
@@ -95,12 +98,10 @@ In `.env` (project root):
 
 ```
 DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<database>
-AMADEUS_CLIENT_ID=your_api_key
-AMADEUS_CLIENT_SECRET=your_api_secret
+TRAVELPAYOUTS_TOKEN=your_api_token
 ```
 
-Amadeus credentials come from a free app at https://developers.amadeus.com.
-`flight_api.py` currently targets the Amadeus **test** environment.
+The token comes from a free account at https://www.travelpayouts.com.
 
 ## Running it
 
@@ -123,12 +124,11 @@ python -m pipeline.queries
 
 ## Status and known limitations
 
-- **Built:** connection, schema, table creation, live Amadeus source,
+- **Built:** connection, schema, table creation, live Travelpayouts source,
   ingestion, scheduling, and the read layer. The pipeline runs end to end.
-- **Amadeus test environment** returns limited, non-real-time data — sufficient
-  for building, not for production accuracy.
-- **Token per run.** `flight_api.py` fetches a fresh access token each run;
-  fine at low volume, would be cached at higher volume.
+- **Cached prices.** Travelpayouts serves fares cached from recent traveller
+  searches, not live availability — a route/date with thin search traffic can
+  return nothing on a given run. Fine for trend history; not bookable fares.
 - **Scheduler runs in the foreground.** For unattended production use it would
   run as a managed service (cron / systemd / a cloud scheduler), not a local
   process.

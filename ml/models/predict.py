@@ -89,6 +89,6 @@ def recommend(
 
 
 if __name__ == "__main__":
-    result = recommend("YYC", "LHR", date(2026, 9, 1))
+    result = recommend("YTO", "PAR", date(2026, 9, 20))
     for key, value in result.items():
         print(f"{key:>25}: {value}")

@@ -53,7 +53,7 @@ Built in `build_features()` from each raw price row:
 | `days_to_departure` | Days between when the price was observed and the flight. The strongest signal. |
 | `observed_dow`, `observed_month` | When the price was seen (weekly/seasonal patterns). |
 | `departure_dow`, `departure_month` | When the flight departs. |
-| `route` | Origin-destination label (e.g. `YYC-LHR`), one-hot encoded before training. |
+| `route` | Origin-destination label (e.g. `YTO-PAR`), one-hot encoded before training. |
 
 ## How training works (`train.py`)
 
@@ -100,7 +100,7 @@ python -m ml.models.train
 python -m ml.models.predict
 
 # Or via the API (with the FastAPI app running)
-# GET http://127.0.0.1:8000/predict/YYC/LHR?departure_date=2026-09-01
+# GET http://127.0.0.1:8000/predict/YTO/PAR?departure_date=2026-09-20
 ```
 
 ## Status and known limitations
