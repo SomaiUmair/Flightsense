@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlightSense</title>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --line:#334155; --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+           background: var(--bg); color: var(--text); line-height: 1.5; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+    h1 { margin: 0 0 .25rem; font-size: 1.8rem; }
+    .sub { color: var(--muted); margin: 0 0 1.5rem; }
+    form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: .75rem; align-items: end;
+           background: var(--card); padding: 1rem; border-radius: 12px; border: 1px solid var(--line); }
+    label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .25rem; }
+    input { width: 100%; padding: .55rem .6rem; border-radius: 8px; border: 1px solid var(--line);
+            background: #0b1220; color: var(--text); font-size: .95rem; }
+    button { padding: .6rem 1.1rem; border: none; border-radius: 8px; background: var(--accent);
+             color: #04222f; font-weight: 600; cursor: pointer; font-size: .95rem; }
+    button:disabled { opacity: .6; cursor: default; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+            padding: 1rem 1.2rem; margin-top: 1rem; }
+    .card h2 { margin: 0 0 .6rem; font-size: 1rem; color: var(--accent); }
+    .rec { font-size: 1.3rem; font-weight: 700; }
+    .rec.wait { color: #fbbf24; } .rec.book { color: #4ade80; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; }
+    .muted { color: var(--muted); }
+    .err { color: #f87171; }
+    @media (max-width: 640px) { form { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>FlightSense ✈️</h1>
+    <p class="sub">Flight price tracker &amp; best-time-to-book predictor</p>
+
+    <form id="search">
+      <div><label>Origin</label><input id="origin" value="YTO" maxlength="3" /></div>
+      <div><label>Destination</label><input id="destination" value="PAR" maxlength="3" /></div>
+      <div><label>Departure date</label><input id="date" type="date" value="2026-09-20" /></div>
+      <button type="submit">Search</button>
+    </form>
+
+    <div id="recommendation" class="card" hidden></div>
+    <div id="cheapest" class="card" hidden></div>
+    <div id="history" class="card" hidden></div>
+  </div>
+
+  <script>
+    // Point this at your running API.
+    const API_BASE = "http://127.0.0.1:8000";
+
+    const $ = (id) => document.getElementById(id);
+
+    async function getJSON(path) {
+      const res = await fetch(API_BASE + path);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const err = new Error(body.detail || res.statusText);
+        err.status = res.status;
+        throw err;
+      }
+      return res.json();
+    }
+
+    function show(el) { el.hidden = false; }
+
+    async function loadRecommendation(o, d, date) {
+      const el = $("recommendation");
+      el.innerHTML = "<h2>Recommendation</h2><p class='muted'>Loading…</p>";
+      show(el);
+      try {
+        const r = await getJSON(`/predict/${o}/${d}?departure_date=${date}`);
+        const cls = r.recommendation === "BOOK_NOW" ? "book" : "wait";
+        const label = r.recommendation === "BOOK_NOW" ? "Book now" : "Wait";
+        el.innerHTML = `<h2>Recommendation</h2>
+          <div class="rec ${cls}">${label}</div>
+          <p class="muted">Predicted today: ${r.predicted_price_today} ·
+          cheapest predicted: ${r.cheapest_predicted_price} on ${r.best_day_to_book}</p>`;
+      } catch (e) {
+        const msg = e.status === 503 ? "Model not trained yet — run training once data is collected."
+                  : e.message;
+        el.innerHTML = `<h2>Recommendation</h2><p class="err">${msg}</p>`;
+      }
+    }
+
+    async function loadCheapest(o, d, date) {
+      const el = $("cheapest");
+      el.innerHTML = "<h2>Cheapest fare seen</h2><p class='muted'>Loading…</p>";
+      show(el);
+      try {
+        const q = await getJSON(`/prices/${o}/${d}/cheapest?departure_date=${date}`);
+        el.innerHTML = `<h2>Cheapest fare seen</h2>
+          <div class="rec">${q.price} ${q.currency}</div>
+          <p class="muted">recorded ${new Date(q.observed_at).toLocaleString()}</p>`;
+      } catch (e) {
+        const msg = e.status === 404 ? "No prices recorded for this flight yet." : e.message;
+        el.innerHTML = `<h2>Cheapest fare seen</h2><p class="err">${msg}</p>`;
+      }
+    }
+
+    async function loadHistory(o, d, date) {
+      const el = $("history");
+      el.innerHTML = "<h2>Price history</h2><p class='muted'>Loading…</p>";
+      show(el);
+      try {
+        const rows = await getJSON(`/prices/${o}/${d}?departure_date=${date}`);
+        if (!rows.length) {
+          el.innerHTML = "<h2>Price history</h2><p class='muted'>No prices recorded yet.</p>";
+          return;
+        }
+        const body = rows.map(r =>
+          `<tr><td>${new Date(r.observed_at).toLocaleString()}</td>
+               <td>${r.price} ${r.currency}</td></tr>`).join("");
+        el.innerHTML = `<h2>Price history (${rows.length})</h2>
+          <table><thead><tr><th>Observed</th><th>Price</th></tr></thead><tbody>${body}</tbody></table>`;
+      } catch (e) {
+        el.innerHTML = `<h2>Price history</h2><p class="err">${e.message}</p>`;
+      }
+    }
+
+    $("search").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const o = $("origin").value.trim().toUpperCase();
+      const d = $("destination").value.trim().toUpperCase();
+      const date = $("date").value;
+      loadRecommendation(o, d, date);
+      loadCheapest(o, d, date);
+      loadHistory(o, d, date);
+    });
+  </script>
+</body>
+</html>
