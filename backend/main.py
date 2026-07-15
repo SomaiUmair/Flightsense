@@ -7,6 +7,7 @@ Thin HTTP layer over the pipeline query and ML functions; returns JSON. Run with
 from datetime import date, datetime
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 
 from pipeline.queries import get_cheapest, get_price_history
@@ -14,6 +15,14 @@ from pipeline.queries import get_cheapest, get_price_history
 app = FastAPI(
     title="FlightSense",
     description="Flight price tracker and best-time-to-book predictor.",
+)
+
+# Allow the browser frontend to call the API (dev: any origin; tighten in prod).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
 )
 
 
