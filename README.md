@@ -3,8 +3,12 @@
 FlightSense is a flight price tracker and best-time-to-book predictor. It
 collects fares from the Travelpayouts API on a schedule, stores their history in
 PostgreSQL, and serves price history plus a book-now-or-wait recommendation
-through a FastAPI backend. This repository is the backend; the frontend is a
-separate project.
+through a FastAPI backend.
+
+FlightSense is one project built by a two-person team: everything server-side
+in this repository — the data pipeline, storage, ML, and API — is my work,
+while a collaborator builds the frontend client on the `feature/frontend`
+branch.
 
 ## Tech stack
 
