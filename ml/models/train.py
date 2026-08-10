@@ -9,7 +9,6 @@ from pathlib import Path
 import joblib
 import pandas as pd
 from sklearn.metrics import mean_absolute_error
-from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor
 
 from ml.data import load_all_quotes
@@ -38,8 +37,13 @@ def train() -> None:
     route_dummies = pd.get_dummies(features["route"], prefix="route")
     X = pd.concat([features[BASE_FEATURES], route_dummies], axis=1)
 
-    # Hold back 20% to measure accuracy on rows the model never saw.
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Hold back the LAST 20% of observations as the test set (rows arrive
+    # time-ordered from load_all_quotes). A time-based split means the test
+    # set is strictly newer than anything trained on, so the score measures
+    # real forecasting rather than interpolation with look-ahead.
+    split = int(len(X) * 0.8)
+    X_train, X_test = X.iloc[:split], X.iloc[split:]
+    y_train, y_test = y.iloc[:split], y.iloc[split:]
 
     model = XGBRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
