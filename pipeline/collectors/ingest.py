@@ -11,9 +11,34 @@ from pipeline.collectors.flight_api import get_live_prices
 # airports, LON = all London airports), so routes use city codes; each run
 # returns fares for many departure dates per route.
 TRACKED_ROUTES = [
-    {"origin": "YYC", "destination": "LON"},  # Calgary -> London
-    {"origin": "YVR", "destination": "TYO"},  # Vancouver -> Tokyo
-    {"origin": "YTO", "destination": "PAR"},  # Toronto -> Paris
+    # Toronto
+    {"origin": "YTO", "destination": "PAR"},
+    {"origin": "YTO", "destination": "LON"},
+    {"origin": "YTO", "destination": "NYC"},
+    {"origin": "YTO", "destination": "LAX"},
+    {"origin": "YTO", "destination": "MIA"},
+    {"origin": "YTO", "destination": "CUN"},
+    {"origin": "YTO", "destination": "ROM"},
+    {"origin": "YTO", "destination": "DEL"},
+    {"origin": "YTO", "destination": "DXB"},
+    {"origin": "YTO", "destination": "TYO"},
+    # Vancouver
+    {"origin": "YVR", "destination": "TYO"},
+    {"origin": "YVR", "destination": "LON"},
+    {"origin": "YVR", "destination": "LAX"},
+    {"origin": "YVR", "destination": "HKG"},
+    {"origin": "YVR", "destination": "SYD"},
+    {"origin": "YVR", "destination": "DEL"},
+    {"origin": "YVR", "destination": "MNL"},
+    # Calgary
+    {"origin": "YYC", "destination": "LON"},
+    {"origin": "YYC", "destination": "LAX"},
+    {"origin": "YYC", "destination": "CUN"},
+    {"origin": "YYC", "destination": "MEX"},
+    # Montreal
+    {"origin": "YMQ", "destination": "PAR"},
+    {"origin": "YMQ", "destination": "LON"},
+    {"origin": "YMQ", "destination": "CUN"},
 ]
 
 
