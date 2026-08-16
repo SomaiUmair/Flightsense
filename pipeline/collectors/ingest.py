@@ -39,6 +39,34 @@ TRACKED_ROUTES = [
     {"origin": "YMQ", "destination": "PAR"},
     {"origin": "YMQ", "destination": "LON"},
     {"origin": "YMQ", "destination": "CUN"},
+    # Domestic Canada
+    {"origin": "YTO", "destination": "YVR"},
+    {"origin": "YTO", "destination": "YYC"},
+    {"origin": "YMQ", "destination": "YVR"},
+    {"origin": "YOW", "destination": "YTO"},
+    # Sun destinations
+    {"origin": "YTO", "destination": "PUJ"},
+    {"origin": "YTO", "destination": "MBJ"},
+    {"origin": "YMQ", "destination": "PUJ"},
+    {"origin": "YVR", "destination": "HNL"},
+    {"origin": "YYC", "destination": "PVR"},
+    # US variety
+    {"origin": "YTO", "destination": "CHI"},
+    {"origin": "YTO", "destination": "SFO"},
+    {"origin": "YVR", "destination": "SFO"},
+    {"origin": "YYC", "destination": "LAS"},
+    # Europe variety
+    {"origin": "YTO", "destination": "BCN"},
+    {"origin": "YTO", "destination": "LIS"},
+    {"origin": "YTO", "destination": "DUB"},
+    {"origin": "YTO", "destination": "IST"},
+    {"origin": "YTO", "destination": "AMS"},
+    # Asia
+    {"origin": "YVR", "destination": "SEL"},
+    {"origin": "YVR", "destination": "BKK"},
+    # Ottawa and Halifax long-haul
+    {"origin": "YOW", "destination": "LON"},
+    {"origin": "YHZ", "destination": "LON"},
 ]
 
 
