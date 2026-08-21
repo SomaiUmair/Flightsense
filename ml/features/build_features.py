@@ -18,7 +18,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     observed_day = pd.to_datetime(df["observed_at"], utc=True).dt.tz_localize(None).dt.normalize()
     departure_day = pd.to_datetime(df["departure_date"]).dt.normalize()
 
-    # Days until the flight — the strongest price signal.
+    # Days until the flight - the strongest price signal.
     df["days_to_departure"] = (departure_day - observed_day).dt.days
 
     # Calendar features capture weekly and seasonal patterns.

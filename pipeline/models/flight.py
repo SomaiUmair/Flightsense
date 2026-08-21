@@ -1,7 +1,7 @@
 """SQLAlchemy models for FlightSense.
 
 Defines the database tables as model classes that inherit from Base. Currently
-just PriceQuote — one row per observed flight price.
+just PriceQuote - one row per observed flight price.
 """
 
 from datetime import date, datetime

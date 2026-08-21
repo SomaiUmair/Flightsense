@@ -86,7 +86,7 @@ def ingest() -> None:
             q["origin"], q["destination"], q["departure_date"], q["price"], q["currency"]
         )
         print(f"Ingested: {saved}")
-    print(f"Done — {len(quotes)} price(s) recorded this run.")
+    print(f"Done - {len(quotes)} price(s) recorded this run.")
 
 
 if __name__ == "__main__":

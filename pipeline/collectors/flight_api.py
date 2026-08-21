@@ -4,7 +4,7 @@ Fetches recently-found one-way fares for tracked routes. Requires
 TRAVELPAYOUTS_TOKEN in .env (free account at https://www.travelpayouts.com).
 Prices come from real traveller searches cached over roughly the last 48
 hours, so each run returns fares for whichever departure dates were searched
-— many dates per route rather than one fixed date.
+- many dates per route rather than one fixed date.
 
 Replaced the Amadeus Self-Service API, decommissioned 2026-07-17; only this
 module and the tracked-route list changed in the swap.
@@ -80,7 +80,7 @@ def get_live_prices(tracked_routes: list[dict], currency: str = "usd") -> list[d
                     "departure_date": depart,
                     "price": round(price, 2),
                     # Store the currency the API actually priced in, not the
-                    # one requested — they can differ, and the row must stay
+                    # one requested - they can differ, and the row must stay
                     # honest.
                     "currency": payload.get("currency", currency).upper(),
                 }

@@ -27,7 +27,7 @@ def train() -> None:
     # A model needs real data; warn (and stop if we can't even split) otherwise.
     if len(features) < 10:
         print(f"Warning: only {len(features)} rows. Train after the scheduler has "
-              "collected more history — a model on this little data is meaningless.")
+              "collected more history - a model on this little data is meaningless.")
         if len(features) < 2:
             return
 

@@ -19,7 +19,7 @@ def main() -> None:
     scheduler.add_job(ingest, "interval", minutes=INTERVAL_MINUTES, id="ingest_prices")
 
     print(
-        f"Scheduler started — collecting now, then every {INTERVAL_MINUTES} min. "
+        f"Scheduler started - collecting now, then every {INTERVAL_MINUTES} min. "
         "Press Ctrl+C to stop."
     )
     ingest()  # collect once immediately rather than waiting a full interval

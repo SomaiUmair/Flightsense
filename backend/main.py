@@ -82,5 +82,5 @@ def predict(origin: str, destination: str, departure_date: date):
         # e.g. departure_date in the past.
         raise HTTPException(status_code=400, detail=str(error))
     except RuntimeError as error:
-        # Model file doesn't exist yet — surface as "service not ready".
+        # Model file doesn't exist yet - surface as "service not ready".
         raise HTTPException(status_code=503, detail=str(error))

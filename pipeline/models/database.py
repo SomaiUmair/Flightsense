@@ -2,7 +2,7 @@
 
 Central place that configures the PostgreSQL connection. Exposes the `engine`,
 the `SessionLocal` session factory, and the `Base` class that models inherit
-from — imported by the models, pipeline, and API so there is one shared setup.
+from - imported by the models, pipeline, and API so there is one shared setup.
 """
 
 import os

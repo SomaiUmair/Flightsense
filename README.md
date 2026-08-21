@@ -1,32 +1,33 @@
 # FlightSense
 
 FlightSense is a flight price tracker and best-time-to-book predictor. It
-collects fares from the Travelpayouts API on a schedule, stores their history in
-PostgreSQL, and serves price history plus a book-now-or-wait recommendation
-through a FastAPI backend.
+collects fares from the Travelpayouts API on a schedule, stores their history
+in PostgreSQL, and serves price history plus a book-now-or-wait recommendation
+through a FastAPI backend. It currently tracks 46 routes out of Canadian
+cities.
 
 ## Tech stack
 
-- **Python 3** · **FastAPI** — web API
-- **PostgreSQL** · **SQLAlchemy 2.0** — storage
-- **APScheduler** — scheduled ingestion
-- **Travelpayouts Data API** — fare data
-- **scikit-learn** · **XGBoost** — price model
+- Python 3 and FastAPI (web API)
+- PostgreSQL and SQLAlchemy 2.0 (storage)
+- APScheduler (scheduled ingestion)
+- Travelpayouts Data API (fare data)
+- scikit-learn and XGBoost (price model)
 
 ## Architecture
 
 ```
-              ┌──────────── scheduler (APScheduler) ────────────┐
-              │                                                  │
-              ▼                                                  │
-Travelpayouts ──► ingest ──► PostgreSQL ──► queries ──► FastAPI ──► client
-                                │
-                                └──► ml: data → features → train → predict
+              +------------ scheduler (APScheduler) ------------+
+              |                                                 |
+              v                                                 |
+Travelpayouts --> ingest --> PostgreSQL --> queries --> FastAPI --> client
+                                |
+                                +--> ml: data -> features -> train -> predict
 ```
 
-- **pipeline/** — ingestion, storage, scheduling, and read queries
-- **backend/** — FastAPI app exposing the endpoints
-- **ml/** — feature engineering, model training, and prediction
+- pipeline/ holds ingestion, storage, scheduling, and read queries
+- backend/ holds the FastAPI app that exposes the endpoints
+- ml/ holds feature engineering, model training, and prediction
 
 ## Setup
 
@@ -47,14 +48,16 @@ python -m pipeline.collectors.ingest
 uvicorn backend.main:app --reload
 ```
 
-Requires a PostgreSQL instance (a free cloud one such as Neon works) and a free
-Travelpayouts API token (https://www.travelpayouts.com), both set in `.env`.
+Requires a PostgreSQL instance (a free cloud one such as Neon works) and a
+free Travelpayouts API token (https://www.travelpayouts.com), both set in
+`.env`.
 
 ## API
 
 Interactive docs at `/docs`. Three endpoints:
 
-**`GET /prices/{origin}/{destination}?departure_date=YYYY-MM-DD`** — full price history.
+`GET /prices/{origin}/{destination}?departure_date=YYYY-MM-DD` returns the
+full price history:
 
 ```json
 [
@@ -66,7 +69,8 @@ Interactive docs at `/docs`. Three endpoints:
 ]
 ```
 
-**`GET /prices/{origin}/{destination}/cheapest?departure_date=YYYY-MM-DD`** — lowest fare recorded.
+`GET /prices/{origin}/{destination}/cheapest?departure_date=YYYY-MM-DD`
+returns the lowest fare recorded:
 
 ```json
 {
@@ -76,7 +80,8 @@ Interactive docs at `/docs`. Three endpoints:
 }
 ```
 
-**`GET /predict/{origin}/{destination}?departure_date=YYYY-MM-DD`** — book-now-or-wait recommendation.
+`GET /predict/{origin}/{destination}?departure_date=YYYY-MM-DD` returns the
+book-now-or-wait recommendation:
 
 ```json
 {
@@ -88,5 +93,5 @@ Interactive docs at `/docs`. Three endpoints:
 
 ## Documentation
 
-- [Data Engineering](docs/data-engineering.md) — ingestion, storage, and the data model
-- [Machine Learning](docs/machine-learning.md) — features, training, and prediction
+- [Data Engineering](docs/data-engineering.md): ingestion, storage, and the data model
+- [Machine Learning](docs/machine-learning.md): features, training, and prediction

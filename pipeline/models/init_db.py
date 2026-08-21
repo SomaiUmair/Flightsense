@@ -1,6 +1,6 @@
 """Create the database tables for FlightSense.
 
-Run once to create every model's table in PostgreSQL. Safe to re-run — existing
+Run once to create every model's table in PostgreSQL. Safe to re-run - existing
 tables are skipped.
 """
 
